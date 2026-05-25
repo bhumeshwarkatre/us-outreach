@@ -659,22 +659,34 @@ with st.form("manual_lead_form"):
 
     submit = st.form_submit_button("Add Lead")
 
-if submit:
-            db.cursor.execute("""
-                INSERT INTO leads (
-                creator_name, email, platform,
-                niche, followers, country,
-                profile_url, status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                name, email, platform,
-                niche, followers, country,
-                url, "new"
-                ))
+# if submit:
+#             db.cursor.execute("""
+#                 INSERT INTO leads (
+#                 creator_name, email, platform,
+#                 niche, followers, country,
+#                 profile_url, status
+#             )
+#             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+#             """, (
+#                 name, email, platform,
+#                 niche, followers, country,
+#                 url, "new"
+#                 ))
 
-            db.conn.commit()
-            st.success("Lead added successfully")
+#             db.conn.commit()
+#             st.success("Lead added successfully")
+
+if submit:
+    db.insert_lead({
+        "creator_name": name,
+        "email": email,
+        "platform": platform,
+        "niche": niche,
+        "followers": followers,
+        "country": country,
+        "profile_url": url
+    })
+    st.success("Lead added successfully")
 
 # delete lead
 

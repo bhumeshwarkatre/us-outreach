@@ -11,3 +11,4 @@ schedule
 streamlit
 apscheduler
 pytz
+supabase>=2.0.0
