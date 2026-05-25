@@ -91,7 +91,7 @@ class Database:
     """
 
     def __init__(self):
-        self.conn = sqlite3.connect(DATABASE_PATH)
+        self.conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
     def create_tables(self):
@@ -190,3 +190,37 @@ class Database:
         """Properly close SQLite connection"""
         if self.conn:
             self.conn.close()
+    
+    def update_lead_status(self, email, new_status):
+        
+            # 1️ SQLite
+        self.cursor.execute("UPDATE leads SET status = ? WHERE email = ?", (new_status, email))
+        self.conn.commit()
+        
+        # 2️⃣ Supabase Sync
+        if supabase:
+            try:
+                supabase.table("leads").update({"status": new_status}).eq("email", email).execute()
+            except Exception as e:
+                print(f"⚠️ Supabase update warning: {e}")
+
+    def delete_leads_bulk(self, email_list):
+        """Delete leads in SQLite + auto-sync to Supabase"""
+        if not email_list:
+            return 0
+            
+        # 1️⃣ SQLite
+        placeholders = ",".join(["?"] * len(email_list))
+        query = f"DELETE FROM leads WHERE LOWER(email) IN ({placeholders})"
+        self.cursor.execute(query, [e.lower() for e in email_list])
+        deleted_count = self.cursor.rowcount
+        self.conn.commit()
+        
+        # 2️⃣ Supabase Sync
+        if supabase and deleted_count > 0:
+            try:
+                supabase.table("leads").delete().in_("email", [e.lower() for e in email_list]).execute()
+            except Exception as e:
+                print(f"⚠️ Supabase delete warning: {e}")
+                
+        return deleted_count

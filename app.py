@@ -735,59 +735,73 @@ if submit:
 
 # delete lead
 
-emails_to_delete = st.text_area(
-    "Enter emails (one per line)"
-)
+# emails_to_delete = st.text_area(
+#     "Enter emails (one per line)"
+# )
+
+# if st.button("Delete Multiple Leads"):
+
+#     email_list = [
+
+#         email.strip().lower()
+
+#         for email in emails_to_delete.splitlines()
+
+#         if email.strip()
+#     ]
+
+#     if email_list:
+
+#         placeholders = ",".join(
+#             ["?"] * len(email_list)
+#         )
+
+#         query = f"""
+#         DELETE FROM leads
+#         WHERE LOWER(email) IN ({placeholders})
+#         """
+
+#         db.cursor.execute(
+#             query,
+#             email_list
+#         )
+
+#         deleted_count = db.cursor.rowcount
+
+#         db.conn.commit()
+
+#         deleted_emails = "\n".join(email_list)
+
+#         st.success(
+#             f"✅ Successfully deleted "
+#             f"{deleted_count} lead(s)."
+#         )
+
+#         st.info(
+#             f"Deleted Emails:\n\n{deleted_emails}"
+#         )
+
+#         st.rerun()
+
+#     else:
+
+#         st.warning(
+#             "⚠️ No emails entered."
+#         )
+
+emails_to_delete = st.text_area("Enter emails (one per line)")
 
 if st.button("Delete Multiple Leads"):
-
-    email_list = [
-
-        email.strip().lower()
-
-        for email in emails_to_delete.splitlines()
-
-        if email.strip()
-    ]
-
+    email_list = [email.strip().lower() for email in emails_to_delete.splitlines() if email.strip()]
+    
     if email_list:
-
-        placeholders = ",".join(
-            ["?"] * len(email_list)
-        )
-
-        query = f"""
-        DELETE FROM leads
-        WHERE LOWER(email) IN ({placeholders})
-        """
-
-        db.cursor.execute(
-            query,
-            email_list
-        )
-
-        deleted_count = db.cursor.rowcount
-
-        db.conn.commit()
-
-        deleted_emails = "\n".join(email_list)
-
-        st.success(
-            f"✅ Successfully deleted "
-            f"{deleted_count} lead(s)."
-        )
-
-        st.info(
-            f"Deleted Emails:\n\n{deleted_emails}"
-        )
-
+        deleted_count = db.delete_leads_bulk(email_list)
+        st.success(f"✅ Successfully deleted {deleted_count} lead(s).")
+        st.info(f"Deleted Emails:\n\n{', '.join(email_list)}")
         st.rerun()
-
     else:
+        st.warning("⚠️ No emails entered.")
 
-        st.warning(
-            "⚠️ No emails entered."
-        )
 
 # =========================
 # OUTREACH
