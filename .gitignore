@@ -30,7 +30,7 @@ logs/
 
 # ========== LOCAL DATA ==========
 data/
-outreach/
+
 
 # ========== BIG / GENERATED FILES ==========
 *.log
