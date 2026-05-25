@@ -118,9 +118,9 @@ def initialize_database():
 # Initialize once (cached across reruns)
 db = initialize_database()
 
-# if "scheduler_started" not in st.session_state:
-#     start_scheduler()
-#     st.session_state["scheduler_started"] = True
+if "scheduler_started" not in st.session_state:
+    start_scheduler()
+    st.session_state["scheduler_started"] = True
 
 
 # =========================
