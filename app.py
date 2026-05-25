@@ -844,6 +844,8 @@ elif menu == "Outreach":
 
     if st.button("Send Outreach Emails"):
 
+        st.warning(" Outreach is running...")
+
         mailer = Mailer()
 
         sender = OutreachSender(db, mailer)

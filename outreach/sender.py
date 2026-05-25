@@ -41,6 +41,12 @@ class OutreachSender:
                 WHERE id = ?
                 """
 
+                 # ✅ HYBRID SYNC: Updates SQLite + auto-syncs to Supabase
+                self.db.update_lead_status(
+                    email=lead["email"],
+                    new_status="sent"
+                )
+
                 self.db.cursor.execute(
                     query,
                     (
@@ -56,7 +62,7 @@ class OutreachSender:
                 )
 
                 time.sleep(
-                    random.randint(10, 30)
+                    random.randint(45, 90)
                 )
 
                 return True

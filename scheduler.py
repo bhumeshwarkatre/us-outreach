@@ -43,7 +43,7 @@ def send_scheduled_outreach():
         # new thread = new connection
         # =====================
 
-        conn = sqlite3.connect(DATABASE_PATH)
+        conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
 
         conn.row_factory = sqlite3.Row
 
@@ -126,6 +126,17 @@ def send_scheduled_outreach():
             def __init__(self, conn, cursor):
                 self.conn = conn
                 self.cursor = cursor
+            
+            # ✅ Added to match sender.py & enable Supabase status sync
+            def update_lead_status(self, email, new_status):
+                try:
+                    self.cursor.execute(
+                        "UPDATE leads SET status = ? WHERE email = ?",
+                        (new_status, email)
+                    )
+                    self.conn.commit()
+                except Exception as e:
+                    print(f"[LOCAL_DB ERROR] {e}")  
 
         local_db = LocalDB(conn, cursor)
 
@@ -164,28 +175,28 @@ def start_scheduler():
     )
 
     # =====================
-    # 6:05 PM IST
+    # 7:45 AM IST (USA TIME)
     # =====================
 
     scheduler.add_job(
 
         func=send_scheduled_outreach,
-
+#17 15
         trigger=CronTrigger(
-            hour=00,
-            minute=45,
+            hour=17,
+            minute=15,
             timezone=IST
         ),
 
-        id="outreach_7pm",
+        id="outreach_7:45Am",
 
-        name="Outreach 7PM IST",
+        name="Outreach 7:45 AM IST (USA TIME)",
 
         replace_existing=True
     )
 
     # =====================
-    # 10:00 PM IST
+    # 8:00 PM IST (USA TIME)
     # =====================
 
     scheduler.add_job(
@@ -193,14 +204,14 @@ def start_scheduler():
         func=send_scheduled_outreach,
 
         trigger=CronTrigger(
-            hour=22,
-            minute=0,
+            hour=5,
+            minute=30,
             timezone=IST
         ),
 
-        id="outreach_10pm",
+        id="outreach_8pm",
 
-        name="Outreach 10PM IST",
+        name="Outreach 8PM IST (USA TIME)",
 
         replace_existing=True
     )
@@ -209,7 +220,7 @@ def start_scheduler():
 
     print(
         "[SCHEDULER] Background scheduler started.\n"
-        "[SCHEDULER] Jobs: 7:00 PM IST, 10:00 PM IST"
+        "[SCHEDULER] Jobs: 5:15 PM IST, 5:30 AM IST"
     )
 
     return scheduler
