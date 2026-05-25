@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 # from scheduler import start_scheduler
-from database.db import Database
+from database.db import Database, supabase
 
 from config.settings import (
     DATABASE_PATH

@@ -11,4 +11,4 @@ schedule
 streamlit
 apscheduler
 pytz
-supabase
+supabase>=2.0.0
