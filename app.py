@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 
-from scheduler import start_scheduler
+# from scheduler import start_scheduler
 from database.db import Database
 
 from config.settings import (
@@ -73,9 +73,9 @@ db = Database()
 
 db.create_tables()
 
-if "scheduler_started" not in st.session_state:
-    start_scheduler()
-    st.session_state["scheduler_started"] = True
+# if "scheduler_started" not in st.session_state:
+#     start_scheduler()
+#     st.session_state["scheduler_started"] = True
 
 
 # =========================
