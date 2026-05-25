@@ -73,6 +73,51 @@ db = Database()
 
 db.create_tables()
 
+#database
+# =========================
+# DATABASE (Cloud-Optimized)
+# =========================
+
+@st.cache_resource
+def initialize_database():
+    """
+    Runs EXACTLY ONCE per cold start.
+    Prevents repeated Supabase calls on every UI interaction.
+    """
+    db = Database()
+    db.create_tables()
+    
+    # Cloud sync: Pulls Supabase → SQLite cache on startup only
+    if supabase:
+        try:
+            response = supabase.table("leads").select("*").execute()
+            cloud_leads = response.data
+            
+            if cloud_leads:
+                conn = sqlite3.connect(DATABASE_PATH)
+                cursor = conn.cursor()
+                for lead in cloud_leads:
+                    # INSERT OR IGNORE prevents duplicates on restart
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO leads 
+                        (creator_name, email, platform, niche, followers, country, profile_url, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        lead.get("creator_name"), lead.get("email"), lead.get("platform"),
+                        lead.get("niche"), lead.get("followers"), lead.get("country"),
+                        lead.get("profile_url"), lead.get("status"), lead.get("created_at")
+                    ))
+                conn.commit()
+                conn.close()
+                print(f"✅ Cloud cache restored: {len(cloud_leads)} leads")
+        except Exception as e:
+            print(f"⚠️ Cloud cache restore skipped: {e}")
+            
+    return db
+
+# Initialize once (cached across reruns)
+db = initialize_database()
+
 # if "scheduler_started" not in st.session_state:
 #     start_scheduler()
 #     st.session_state["scheduler_started"] = True
