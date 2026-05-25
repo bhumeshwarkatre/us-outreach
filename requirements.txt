@@ -1,0 +1,13 @@
+beautifulsoup4
+requests
+lxml
+fake-useragent
+python-dotenv
+playwright
+sqlalchemy
+pandas
+validators
+schedule
+streamlit
+apscheduler
+pytz

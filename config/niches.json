@@ -1,0 +1,81 @@
+{
+  "finance": [
+    "personal finance creator",
+    "wealth building coach",
+    "side hustle educator",
+    "passive income creator",
+    "money mindset coach"
+  ],
+
+  "trading": [
+    "AI trading creator",
+    "forex trader",
+    "crypto analyst",
+    "stock market educator",
+    "algo trading builder"
+  ],
+
+  "ai_tools": [
+    "AI automation creator",
+    "ChatGPT workflow creator",
+    "no-code builder",
+    "AI tools reviewer",
+    "automation business creator"
+  ],
+
+  "coding": [
+    "software engineer creator",
+    "AI engineer educator",
+    "web development mentor",
+    "freelance developer coach",
+    "coding tutorial creator"
+  ],
+
+  "productivity": [
+    "self improvement creator",
+    "discipline coach",
+    "productivity system builder",
+    "morning routine creator",
+    "mental performance coach"
+  ],
+
+  "fitness": [
+    "fitness transformation coach",
+    "fat loss creator",
+    "gym training educator",
+    "home workout creator",
+    "nutrition coach"
+  ],
+
+  "business": [
+    "solopreneur creator",
+    "startup founder creator",
+    "online business builder",
+    "agency growth coach",
+    "freelancing mentor"
+  ],
+
+  "marketing": [
+    "social media growth hacker",
+    "content marketing creator",
+    "brand strategist",
+    "influencer growth coach",
+    "viral content creator"
+  ],
+
+  "creator_economy": [
+    "content creator coach",
+    "instagram growth creator",
+    "youtube growth strategist",
+    "shorts reels editor creator",
+    "personal brand builder"
+  ],
+
+  "faceless_ai": [
+    "faceless youtube creator",
+    "AI video channel builder",
+    "automated content creator",
+    "AI narration creator",
+    "content automation strategist"
+  ]
+}

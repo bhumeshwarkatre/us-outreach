@@ -1,0 +1,36 @@
+# ========== ENV ==========
+.env
+venv/
+.venv/
+env/
+
+# ========== PYTHON CACHE ==========
+__pycache__/
+*.pyc
+
+# ========== DATABASE FILES ==========
+database/leads.db
+*.db
+
+# keep schema if needed
+# database/schema.sql  (KEEP this)
+
+# ========== LOGS ==========
+logs/
+
+# ========== IDE ==========
+.vscode/
+.idea/
+
+# ========== SYSTEM ==========
+.DS_Store
+
+# ========== STREAMLIT (if using) ==========
+.streamlit/
+
+# ========== LOCAL DATA ==========
+data/
+outreach/
+
+# ========== BIG / GENERATED FILES ==========
+*.log
