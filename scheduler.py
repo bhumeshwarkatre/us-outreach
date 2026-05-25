@@ -172,8 +172,8 @@ def start_scheduler():
         func=send_scheduled_outreach,
 
         trigger=CronTrigger(
-            hour=19,
-            minute=00,
+            hour=00,
+            minute=45,
             timezone=IST
         ),
 

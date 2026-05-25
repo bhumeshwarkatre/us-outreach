@@ -175,21 +175,6 @@ class Database:
         # STEP 2: SYNC TO SUPABASE (BACKUP)
         # =========================
         self._sync_to_supabase(data)
-
-    def get_all_leads(self):
-        """
-        Fetch all leads from SQLite for UI rendering.
-        Returns list of dicts for easy pandas/streamlit integration.
-        (Supabase is backup-only; reads stay local for speed)
-        """
-        self.cursor.execute("SELECT * FROM leads ORDER BY created_at DESC")
-        columns = [desc[0] for desc in self.cursor.description]
-        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
-
-    def close(self):
-        """Properly close SQLite connection"""
-        if self.conn:
-            self.conn.close()
     
     def update_lead_status(self, email, new_status):
         
@@ -224,3 +209,21 @@ class Database:
                 print(f"⚠️ Supabase delete warning: {e}")
                 
         return deleted_count
+
+
+    def get_all_leads(self):
+        """
+        Fetch all leads from SQLite for UI rendering.
+        Returns list of dicts for easy pandas/streamlit integration.
+        (Supabase is backup-only; reads stay local for speed)
+        """
+        self.cursor.execute("SELECT * FROM leads ORDER BY created_at DESC")
+        columns = [desc[0] for desc in self.cursor.description]
+        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+
+    def close(self):
+        """Properly close SQLite connection"""
+        if self.conn:
+            self.conn.close()
+    
+    
