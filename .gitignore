@@ -40,3 +40,5 @@ googlesmtp.md
 sync_from_cloud.py
 
 sync.py
+
+test_gmail.py
