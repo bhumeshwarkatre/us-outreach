@@ -1,0 +1,39 @@
+name: 🌐 Cloud Outreach Scheduler
+
+on:
+  schedule:
+    # 5:15 PM IST = 11:45 UTC
+    - cron: '45 11 * * *'
+    # 5:30 AM IST = 00:00 UTC (next day)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  send-outreach:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: 📤 Run Outreach Job
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          IMAP_SERVER: ${{ secrets.IMAP_SERVER }}
+        run: |
+          python -c "
+          from scheduler import send_scheduled_outreach
+          send_scheduled_outreach()
+          "
