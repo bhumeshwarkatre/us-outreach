@@ -1,4 +1,4 @@
-name:  Cloud Outreach Scheduler
+name: 🌐 Cloud Outreach Scheduler
 
 on:
   schedule:
@@ -8,24 +8,38 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+# ✅ PREVENT OVERLAPPING RUNS (Critical for duplicate prevention)
+concurrency:
+  group: outreach-scheduler
+  cancel-in-progress: false
+
 jobs:
   send-outreach:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name:  Checkout Repository
-        uses: actions/checkout@v5  
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v5
 
-      - name:  Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name:  Install Dependencies
+      - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
 
-      - name:  Run Outreach Job
+      - name: 🔍 Verify Template & Config
+        run: |
+          python -c "
+          from outreach.templates import INITIAL_TEMPLATE
+          assert 'monetization' in INITIAL_TEMPLATE.lower(), '❌ Template not updated!'
+          print('✅ Template loaded successfully')
+          print(f'📝 Preview: {INITIAL_TEMPLATE[:60]}...')
+          "
+
+      - name: 📤 Run Outreach Job
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -41,7 +55,7 @@ jobs:
               from scheduler import send_scheduled_outreach
               send_scheduled_outreach()
           except Exception as e:
-              print(f' CRITICAL ERROR: {e}', file=sys.stderr)
+              print(f'💥 CRITICAL ERROR: {e}', file=sys.stderr)
               import traceback
               traceback.print_exc()
               sys.exit(1)

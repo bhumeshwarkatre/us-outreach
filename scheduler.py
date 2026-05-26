@@ -102,6 +102,14 @@ def send_scheduled_outreach():
                 f"Total fetched: {len(leads)}"
             )
 
+            # ✅ IMMEDIATELY LOCK ROWS TO PREVENT DUPLICATES
+            for lead in leads:
+                cursor.execute(
+                    "UPDATE leads SET status = 'processing' WHERE id = ?",
+                    (lead["id"],)
+                )
+            conn.commit()  # ✅ Locks them before sending starts
+
             # =====================
             # VALIDATE EMAILS
             # =====================
@@ -149,7 +157,7 @@ def send_scheduled_outreach():
                             "UPDATE leads SET status = ? WHERE email = ?",
                             (new_status, email)
                         )
-                        self.conn.commit()
+                        self.conn.commit()  # ✅ ATOMIC COMMIT
                     except Exception as e:
                         print(f"[LOCAL_DB ERROR] {e}")  
 
