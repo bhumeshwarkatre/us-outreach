@@ -68,55 +68,54 @@ st.set_page_config(
 # =========================
 # DATABASE
 # =========================
-
-db = Database()
-
-db.create_tables()
-
-#database
 # =========================
-# DATABASE (Cloud-Optimized)
+# DATABASE (Cloud-Optimized & Auto-Mirror)
 # =========================
 
 @st.cache_resource
 def initialize_database():
     """
     Runs EXACTLY ONCE per cold start.
-    Prevents repeated Supabase calls on every UI interaction.
+    Mirrors Supabase → Local SQLite automatically (even if 0 leads).
     """
     db = Database()
     db.create_tables()
     
-    # Cloud sync: Pulls Supabase → SQLite cache on startup only
     if supabase:
         try:
-            response = supabase.table("leads").select("*").execute()
-            cloud_leads = response.data
+            # 1️⃣ Fetch from cloud
+            cloud_leads = supabase.table("leads").select("*").execute().data
             
-            if cloud_leads:
-                conn = sqlite3.connect(DATABASE_PATH)
-                cursor = conn.cursor()
-                for lead in cloud_leads:
-                    # INSERT OR IGNORE prevents duplicates on restart
-                    cursor.execute("""
-                        INSERT OR IGNORE INTO leads 
-                        (creator_name, email, platform, niche, followers, country, profile_url, status, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        lead.get("creator_name"), lead.get("email"), lead.get("platform"),
-                        lead.get("niche"), lead.get("followers"), lead.get("country"),
-                        lead.get("profile_url"), lead.get("status"), lead.get("created_at")
-                    ))
-                conn.commit()
-                conn.close()
-                print(f"✅ Cloud cache restored: {len(cloud_leads)} leads")
+            # 2️⃣ ALWAYS clear local cache first (prevents stale data)
+            db.cursor.execute("DELETE FROM leads")
+            db.conn.commit()
+            
+            # 3️⃣ Rebuild from cloud
+            for lead in cloud_leads:
+                db.cursor.execute("""
+                    INSERT INTO leads 
+                    (creator_name, email, platform, niche, followers, country, profile_url, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    lead.get("creator_name"), lead.get("email"), lead.get("platform"),
+                    lead.get("niche"), lead.get("followers"), lead.get("country"),
+                    lead.get("profile_url"), lead.get("status"), lead.get("created_at")
+                ))
+            db.conn.commit()
+            print(f"✅ Cloud cache restored: {len(cloud_leads)} leads")
+            
         except Exception as e:
-            print(f"⚠️ Cloud cache restore skipped: {e}")
+            print(f"⚠️ Cloud sync skipped (keeping local data): {e}")
             
     return db
 
-# Initialize once (cached across reruns)
+# ⚡ FORCE CLEAR CACHE ON STARTUP (Fixes stale connection bug)
+st.cache_resource.clear()
 db = initialize_database()
+
+if "scheduler_started" not in st.session_state:
+    start_scheduler()
+    st.session_state["scheduler_started"] = True
 
 if "scheduler_started" not in st.session_state:
     start_scheduler()
