@@ -36,3 +36,7 @@ data/
 *.log
 
 googlesmtp.md
+
+sync_from_cloud.py
+
+sync.py

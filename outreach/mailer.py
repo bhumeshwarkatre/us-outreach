@@ -202,7 +202,7 @@ class Mailer:
                 self.smtp_server
             )
 
-            server.set_debuglevel(1)
+            # server.set_debuglevel(1)
 
             server.starttls()
 
