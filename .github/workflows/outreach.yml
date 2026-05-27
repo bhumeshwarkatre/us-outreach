@@ -38,7 +38,7 @@ jobs:
           from supabase import create_client
           
           db_path = os.getenv('DATABASE_PATH', 'database/leads.db')
-          print(f'🔍 DEBUG: DATABASE_PATH={db_path}')
+          print(f'🔍 DEBUG: DATABASE_PATH={db_path}', flush=True)
           
           conn = sqlite3.connect(db_path)
           cursor = conn.cursor()
@@ -51,11 +51,11 @@ jobs:
               follow_up_count INTEGER DEFAULT 0, reply_status TEXT DEFAULT 'pending'
           )''')
           conn.commit()
-          print('✅ Table created/verified')
+          print('✅ Table created/verified', flush=True)
           
           supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY'))
           leads = supabase.table('leads').select('*').execute().data
-          print(f'📥 Fetched {len(leads)} leads from Supabase')
+          print(f'📥 Fetched {len(leads)} leads from Supabase', flush=True)
           
           cursor.execute('DELETE FROM leads')
           for l in leads:
@@ -65,7 +65,7 @@ jobs:
                   (l.get('creator_name'), l.get('email'), l.get('platform'), l.get('niche'), l.get('followers'), l.get('country'), l.get('profile_url'), l.get('status'), l.get('created_at'), l.get('next_follow_up'), l.get('follow_up_count',0), l.get('reply_status','pending'))
               )
           conn.commit()
-          print(f'✅ DB Synced: {len(leads)} leads written to {db_path}')
+          print(f'✅ DB Synced: {len(leads)} leads written to {db_path}', flush=True)
           conn.close()
           EOF
         env:
@@ -75,7 +75,7 @@ jobs:
       - name: 🔒 Clear Stale Locks
         run: rm -f scheduler.lock followup.lock
 
-      # ✅ STEP 2: Run Outreach + Inline Supabase Sync (YAML-SAFE HEREDOC)
+      # ✅ STEP 2: Run Outreach + Inline Supabase Sync (WITH HARD STOP + VISIBLE LOGS)
       - name:  Run Outreach Job
         env:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
@@ -96,15 +96,16 @@ jobs:
           from outreach.templates import INITIAL_TEMPLATE
           from config.settings import DATABASE_PATH
 
-          print('[CLOUD] ✅ Supabase client initialized')
+          print('[CLOUD] ✅ Supabase client initialized', flush=True)
           supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY'))
-          print(f'🔍 DEBUG: Scheduler using DATABASE_PATH={DATABASE_PATH}')
-          print('[SCHEDULER] Starting scheduled outreach...')
+          print(f'🔍 DEBUG: Scheduler using DATABASE_PATH={DATABASE_PATH}', flush=True)
+          print('[SCHEDULER] Starting scheduled outreach...', flush=True)
 
           conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
           conn.row_factory = sqlite3.Row
           cursor = conn.cursor()
 
+          # ✅ Fetch new leads (preserving your original query)
           cursor.execute("""
               SELECT * FROM leads 
               WHERE status = 'new' OR status IS NULL 
@@ -113,25 +114,32 @@ jobs:
           """)
           rows = cursor.fetchall()
           if not rows:
-              print('[SCHEDULER] No new leads found.')
+              print('[SCHEDULER] No new leads found.', flush=True)
               conn.close()
               sys.exit(0)
 
           leads = [dict(row) for row in rows]
-          print(f'[SCHEDULER] Total fetched: {len(leads)}')
+          print(f'[SCHEDULER] Total fetched: {len(leads)}', flush=True)
 
+          # ✅ Validate emails
           valid_leads = [lead for lead in leads if Validator.valid_email(lead.get('email', ''))]
           if not valid_leads:
-              print('[SCHEDULER] No valid leads after filtering.')
+              print('[SCHEDULER] No valid leads after filtering.', flush=True)
               conn.close()
               sys.exit(0)
 
-          print(f'[SCHEDULER] Valid leads to send: {len(valid_leads)}')
+          print(f'[SCHEDULER] Valid leads to send: {len(valid_leads)}', flush=True)
 
           mailer = Mailer()
           sent_count = 0
+          MAX_EMAILS = 20  # ✅ HARD STOP: Never send more than 20
 
           for lead in valid_leads:
+              # ✅ HARD STOP: Break immediately after 20 sends
+              if sent_count >= MAX_EMAILS:
+                  print(f'[SCHEDULER] 🛑 HARD STOP: Reached {MAX_EMAILS} emails sent. Exiting loop.', flush=True)
+                  break
+
               try:
                   body = INITIAL_TEMPLATE.format(name=lead.get('creator_name', 'Creator'))
                   success = mailer.send_email(
@@ -141,23 +149,46 @@ jobs:
                   )
 
                   if success:
+                      # 1️⃣ Update SQLite FIRST (atomic)
                       cursor.execute('UPDATE leads SET status = ? WHERE email = ?', ('sent', lead['email']))
                       conn.commit()
-                      print(f'[DB] ✅ SQLite updated: {lead["email"]} → sent')
+                      print(f'[DB] ✅ SQLite updated: {lead["email"]} → sent', flush=True)
 
-                      supabase.table('leads').update({'status': 'sent'}).eq('email', lead['email']).execute()
-                      print(f'[CLOUD] ✅ Supabase updated: {lead["email"]} → sent')
+                      # 2️⃣ Sync to Supabase IMMEDIATELY (with retry logic)
+                      supabase_synced = False
+                      for retry in range(3):
+                          try:
+                              supabase.table('leads').update({'status': 'sent'}).eq('email', lead['email']).execute()
+                              print(f'[CLOUD] ✅ Supabase updated: {lead["email"]} → sent', flush=True)
+                              supabase_synced = True
+                              break
+                          except Exception as cloud_err:
+                              print(f'[CLOUD] ⚠️ Retry {retry+1}/3 for {lead["email"]}: {cloud_err}', flush=True)
+                              time.sleep(2)
+                      
+                      if not supabase_synced:
+                          print(f'[CLOUD] ❌ Failed to sync {lead["email"]} after 3 retries', flush=True)
 
                       sent_count += 1
-                      time.sleep(random.uniform(45, 120))
+                      # ✅ Visible progress log (shows exactly when it stops)
+                      print(f'[PROGRESS] {sent_count}/{MAX_EMAILS} emails sent', flush=True)
+
+                      # ✅ Delay between sends (prevents Gmail throttling)
+                      if sent_count < MAX_EMAILS:  # No delay after last email
+                          delay = random.uniform(45, 120)
+                          print(f'[DELAY] Waiting {delay:.1f}s before next email...', flush=True)
+                          time.sleep(delay)
                   else:
-                      print(f'[MAIL] ❌ Failed to send to {lead["email"]}')
+                      print(f'[MAIL] ❌ Failed to send to {lead["email"]}', flush=True)
 
               except Exception as e:
-                  print(f'[ERROR] Processing {lead.get("email")}: {e}')
+                  print(f'[ERROR] Processing {lead.get("email")}: {e}', flush=True)
                   import traceback
-                  traceback.print_exc()
+                  traceback.print_exc(file=sys.stderr)
+                  # Continue to next lead instead of crashing entire job
 
-          print(f'[SCHEDULER] Completed. {sent_count}/{len(valid_leads)} emails sent.')
+          # ✅ Final summary log (always visible)
+          print(f'[SCHEDULER] Completed. {sent_count}/{len(valid_leads)} emails sent.', flush=True)
+          print(f'[SCHEDULER] Hard stop enforced: MAX_EMAILS={MAX_EMAILS}', flush=True)
           conn.close()
           EOF
