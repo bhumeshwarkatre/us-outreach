@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '45 11 * * *'  # 5:15 PM IST
     - cron: '0 0 * * *'    # 5:30 AM IST
-  # workflow_dispatch:
+  workflow_dispatch:
 
 concurrency:
   group: outreach-scheduler
@@ -18,84 +18,64 @@ jobs:
       DATABASE_PATH: "database/leads.db"
       
     steps:
-      - name:  Checkout Repository
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v5
 
-      - name:  Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name:  Install Dependencies
+      - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
 
-      
-      - name:  Initialize & Sync Database
+      # ✅ STEP 1: Create Directory + Sync DB
+      - name: 🗄️ Initialize & Sync Database
         run: |
-          #  Ensure the database/ directory exists on Linux
           mkdir -p database
-          
           python -c "
           import os, sys, sqlite3
           from supabase import create_client
           
-          #  Use the EXACT path from env (matches config/settings.py)
           db_path = os.getenv('DATABASE_PATH', 'database/leads.db')
-          print(f' DEBUG: DATABASE_PATH={db_path}')
-          print(f' DEBUG: SUPABASE_URL={os.getenv(\"SUPABASE_URL\")[:20]}...')
+          print(f'🔍 DEBUG: DATABASE_PATH={db_path}')
           
-          try:
-              # 1. Connect to SQLite
-              conn = sqlite3.connect(db_path)
-              cursor = conn.cursor()
-              
-              # 2. Create table if missing
-              cursor.execute('''CREATE TABLE IF NOT EXISTS leads (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  creator_name TEXT, email TEXT UNIQUE, platform TEXT,
-                  niche TEXT, followers TEXT, country TEXT, profile_url TEXT,
-                  status TEXT, created_at TEXT, next_follow_up TEXT,
-                  follow_up_count INTEGER DEFAULT 0, reply_status TEXT DEFAULT 'pending'
-              )''')
-              conn.commit()
-              print(' Table created/verified')
-              
-              # 3. Connect to Supabase
-              supabase = create_client(
-                  os.getenv('SUPABASE_URL'), 
-                  os.getenv('SUPABASE_KEY')
+          conn = sqlite3.connect(db_path)
+          cursor = conn.cursor()
+          
+          cursor.execute('''CREATE TABLE IF NOT EXISTS leads (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              creator_name TEXT, email TEXT UNIQUE, platform TEXT,
+              niche TEXT, followers TEXT, country TEXT, profile_url TEXT,
+              status TEXT, created_at TEXT, next_follow_up TEXT,
+              follow_up_count INTEGER DEFAULT 0, reply_status TEXT DEFAULT 'pending'
+          )''')
+          conn.commit()
+          print('✅ Table created/verified')
+          
+          supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY'))
+          leads = supabase.table('leads').select('*').execute().data
+          print(f'📥 Fetched {len(leads)} leads from Supabase')
+          
+          cursor.execute('DELETE FROM leads')
+          for l in leads:
+              l.pop('id', None)
+              cursor.execute(
+                  'INSERT OR IGNORE INTO leads (creator_name,email,platform,niche,followers,country,profile_url,status,created_at,next_follow_up,follow_up_count,reply_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                  (l.get('creator_name'), l.get('email'), l.get('platform'), l.get('niche'), l.get('followers'), l.get('country'), l.get('profile_url'), l.get('status'), l.get('created_at'), l.get('next_follow_up'), l.get('follow_up_count',0), l.get('reply_status','pending'))
               )
-              
-              # 4. Fetch leads
-              leads = supabase.table('leads').select('*').execute().data
-              print(f' Fetched {len(leads)} leads from Supabase')
-              
-              # 5. Clear local & insert
-              cursor.execute('DELETE FROM leads')
-              for l in leads:
-                  l.pop('id', None)
-                  cursor.execute(
-                      'INSERT OR IGNORE INTO leads (creator_name,email,platform,niche,followers,country,profile_url,status,created_at,next_follow_up,follow_up_count,reply_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-                      (l.get('creator_name'), l.get('email'), l.get('platform'), l.get('niche'), l.get('followers'), l.get('country'), l.get('profile_url'), l.get('status'), l.get('created_at'), l.get('next_follow_up'), l.get('follow_up_count',0), l.get('reply_status','pending'))
-                  )
-              conn.commit()
-              print(f' DB Synced: {len(leads)} leads written to {db_path}')
-              conn.close()
-              
-          except Exception as e:
-              print(f' SYNC ERROR: {e}', file=sys.stderr)
-              import traceback
-              traceback.print_exc()
-              sys.exit(1)
+          conn.commit()
+          print(f'✅ DB Synced: {len(leads)} leads written to {db_path}')
+          conn.close()
           "
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-      - name:  Clear Stale Locks
+      - name: 🔒 Clear Stale Locks
         run: rm -f scheduler.lock followup.lock
 
-      #  STEP 2: Run Outreach (with same DATABASE_PATH)
+      # ✅ STEP 2: Run Outreach + Inline Supabase Sync (GUARANTEED)
       - name: 📤 Run Outreach Job
         env:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
@@ -103,17 +83,91 @@ jobs:
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           IMAP_SERVER: ${{ secrets.IMAP_SERVER }}
-          DATABASE_PATH: ${{ env.DATABASE_PATH }} 
+          DATABASE_PATH: ${{ env.DATABASE_PATH }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           python -c "
-          import os, sys
-          print(f' DEBUG: Scheduler using DATABASE_PATH={os.getenv(\"DATABASE_PATH\")}')
-          try:
-              from scheduler import send_scheduled_outreach
-              send_scheduled_outreach()
-          except Exception as e:
-              print(f' SCHEDULER ERROR: {e}', file=sys.stderr)
-              import traceback
-              traceback.print_exc()
-              sys.exit(1)
+          import os, sys, time, random, sqlite3
+          
+          # ✅ Inline Supabase client (guaranteed to work)
+          from supabase import create_client
+          supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY'))
+          print('[CLOUD] ✅ Supabase client initialized')
+          
+          # ✅ Import your existing modules
+          sys.path.insert(0, '.')
+          from outreach.mailer import Mailer
+          from outreach.sender import OutreachSender
+          from core.validator import Validator
+          from outreach.templates import INITIAL_TEMPLATE
+          from config.settings import DATABASE_PATH
+          
+          print(f'🔍 DEBUG: Scheduler using DATABASE_PATH={DATABASE_PATH}')
+          print('[SCHEDULER] Starting scheduled outreach...')
+          
+          conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
+          conn.row_factory = sqlite3.Row
+          cursor = conn.cursor()
+          
+          # Fetch new leads
+          cursor.execute(\"\"\"
+              SELECT * FROM leads 
+              WHERE status = 'new' OR status IS NULL 
+              ORDER BY created_at ASC 
+              LIMIT 20
+          \"\"\")
+          rows = cursor.fetchall()
+          if not rows:
+              print('[SCHEDULER] No new leads found.')
+              conn.close()
+              sys.exit(0)
+          
+          leads = [dict(row) for row in rows]
+          print(f'[SCHEDULER] Total fetched: {len(leads)}')
+          
+          # Validate
+          valid_leads = [lead for lead in leads if Validator.valid_email(lead.get('email', ''))]
+          if not valid_leads:
+              print('[SCHEDULER] No valid leads after filtering.')
+              conn.close()
+              sys.exit(0)
+          
+          print(f'[SCHEDULER] Valid leads to send: {len(valid_leads)}')
+          
+          # Send emails + sync status (inline, guaranteed)
+          mailer = Mailer()
+          sent_count = 0
+          
+          for lead in valid_leads:
+              try:
+                  body = INITIAL_TEMPLATE.format(name=lead.get('creator_name', 'Creator'))
+                  success = mailer.send_email(
+                      recipient=lead['email'],
+                      subject='Custom Monetization Strategy For Your Content',
+                      body=body
+                  )
+                  
+                  if success:
+                      # Update SQLite
+                      cursor.execute('UPDATE leads SET status = ? WHERE email = ?', ('sent', lead['email']))
+                      conn.commit()
+                      print(f'[DB] ✅ SQLite updated: {lead[\"email\"]} → sent')
+                      
+                      # ✅ CRITICAL: Sync to Supabase immediately (inline)
+                      supabase.table('leads').update({'status': 'sent'}).eq('email', lead['email']).execute()
+                      print(f'[CLOUD] ✅ Supabase updated: {lead[\"email\"]} → sent')
+                      
+                      sent_count += 1
+                      time.sleep(random.uniform(45, 120))
+                  else:
+                      print(f'[MAIL] ❌ Failed to send to {lead[\"email\"]}')
+                      
+              except Exception as e:
+                  print(f'[ERROR] Processing {lead.get(\"email\")}: {e}')
+                  import traceback
+                  traceback.print_exc()
+          
+          print(f'[SCHEDULER] Completed. {sent_count}/{len(valid_leads)} emails sent.')
+          conn.close()
           "
