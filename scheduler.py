@@ -16,18 +16,6 @@ from outreach.sender import OutreachSender
 from core.validator import Validator
 from config.settings import DATABASE_PATH
 
-# ✅ Initialize Supabase client safely (works in GitHub Actions & locally)
-try:
-    from supabase import create_client
-    _SUPABASE_URL = os.getenv("SUPABASE_URL")
-    _SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-    if _SUPABASE_URL and _SUPABASE_KEY:
-        supabase_client = create_client(_SUPABASE_URL, _SUPABASE_KEY)
-    else:
-        supabase_client = None
-except Exception:
-    supabase_client = None
-
 
 # =========================
 # TIMEZONE
@@ -48,6 +36,21 @@ def send_scheduled_outreach():
             "[SCHEDULER] Starting "
             "scheduled outreach..."
         )
+
+        # ✅ CRITICAL: Initialize Supabase client INSIDE function (has access to env vars)
+        try:
+            from supabase import create_client
+            _SUPABASE_URL = os.getenv("SUPABASE_URL")
+            _SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+            if _SUPABASE_URL and _SUPABASE_KEY:
+                supabase_client = create_client(_SUPABASE_URL, _SUPABASE_KEY)
+                print("[CLOUD] ✅ Supabase client initialized")
+            else:
+                supabase_client = None
+                print("[CLOUD] ⚠️ Missing SUPABASE_URL or SUPABASE_KEY")
+        except Exception as e:
+            supabase_client = None
+            print(f"[CLOUD] 💥 Failed to init Supabase client: {e}")
 
         # =====================
         # LOCK FILE
@@ -162,27 +165,17 @@ def send_scheduled_outreach():
                     self.conn = conn
                     self.cursor = cursor
                 
-                # ✅ FIXED: Updates SQLite + Syncs to Supabase + Fails Loudly
+                # ✅ Updated: Updates SQLite only (cloud sync handled separately below)
                 def update_lead_status(self, email, new_status):
                     try:
-                        # 1️⃣ Update SQLite
                         self.cursor.execute(
                             "UPDATE leads SET status = ? WHERE email = ?",
                             (new_status, email)
                         )
-                        self.conn.commit()
+                        self.conn.commit()  # ✅ ATOMIC COMMIT
                         print(f"[DB] ✅ SQLite updated: {email} → {new_status}")
-
-                        # 2️⃣ ✅ CRITICAL: Sync to Supabase immediately
-                        if supabase_client:
-                            supabase_client.table("leads").update(
-                                {"status": new_status}
-                            ).eq("email", email).execute()
-                            print(f"[CLOUD] ✅ Supabase updated: {email} → {new_status}")
-                            
                     except Exception as e:
-                        # ✅ Fail loudly so you see exactly what broke
-                        print(f"[DB/CLOUD ERROR] Failed to update {email}: {e}")  
+                        print(f"[LOCAL_DB ERROR] {e}")  
 
             local_db = LocalDB(conn, cursor)
 
@@ -195,6 +188,22 @@ def send_scheduled_outreach():
             sender = OutreachSender(local_db, mailer)
 
             sent = sender.send_bulk(valid_leads)
+
+            # ✅ CRITICAL: Direct Supabase sync for all sent leads (bypasses LocalDB wrapper)
+            if supabase_client and sent > 0:
+                print(f"[CLOUD] Syncing {sent} sent leads to Supabase...")
+                for lead in valid_leads:
+                    try:
+                        # Check if this lead was actually sent (status should be 'sent' in SQLite)
+                        cursor.execute("SELECT status FROM leads WHERE email = ?", (lead["email"],))
+                        row = cursor.fetchone()
+                        if row and row[0] == "sent":
+                            supabase_client.table("leads").update(
+                                {"status": "sent"}
+                            ).eq("email", lead["email"]).execute()
+                            print(f"[CLOUD] ✅ Supabase updated: {lead['email']} → sent")
+                    except Exception as cloud_err:
+                        print(f"[CLOUD] ⚠️ Failed to sync {lead['email']}: {cloud_err}")
 
             print(
                 f"[SCHEDULER] "
