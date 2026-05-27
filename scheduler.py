@@ -16,6 +16,18 @@ from outreach.sender import OutreachSender
 from core.validator import Validator
 from config.settings import DATABASE_PATH
 
+# ✅ Initialize Supabase client safely (works in GitHub Actions & locally)
+try:
+    from supabase import create_client
+    _SUPABASE_URL = os.getenv("SUPABASE_URL")
+    _SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    if _SUPABASE_URL and _SUPABASE_KEY:
+        supabase_client = create_client(_SUPABASE_URL, _SUPABASE_KEY)
+    else:
+        supabase_client = None
+except Exception:
+    supabase_client = None
+
 
 # =========================
 # TIMEZONE
@@ -150,16 +162,27 @@ def send_scheduled_outreach():
                     self.conn = conn
                     self.cursor = cursor
                 
-                # ✅ Added to match sender.py & enable Supabase status sync
+                # ✅ FIXED: Updates SQLite + Syncs to Supabase + Fails Loudly
                 def update_lead_status(self, email, new_status):
                     try:
+                        # 1️⃣ Update SQLite
                         self.cursor.execute(
                             "UPDATE leads SET status = ? WHERE email = ?",
                             (new_status, email)
                         )
-                        self.conn.commit()  # ✅ ATOMIC COMMIT
+                        self.conn.commit()
+                        print(f"[DB] ✅ SQLite updated: {email} → {new_status}")
+
+                        # 2️⃣ ✅ CRITICAL: Sync to Supabase immediately
+                        if supabase_client:
+                            supabase_client.table("leads").update(
+                                {"status": new_status}
+                            ).eq("email", email).execute()
+                            print(f"[CLOUD] ✅ Supabase updated: {email} → {new_status}")
+                            
                     except Exception as e:
-                        print(f"[LOCAL_DB ERROR] {e}")  
+                        # ✅ Fail loudly so you see exactly what broke
+                        print(f"[DB/CLOUD ERROR] Failed to update {email}: {e}")  
 
             local_db = LocalDB(conn, cursor)
 
