@@ -1,155 +1,117 @@
 {
   "finance": [
     "personal finance creator",
-    "financial freedom creator",
-    "money saving creator",
     "investing educator",
-    "wealth mindset creator",
-    "credit card creator",
-    "budgeting coach",
-    "side hustle creator",
+    "financial freedom creator",
     "passive income creator",
-    "millennial finance creator"
+    "side hustle creator",
+    "wealth mindset creator",
+    "budgeting coach",
+    "credit card creator"
   ],
 
   "trading": [
     "forex trader",
     "day trading educator",
     "swing trading creator",
-    "crypto trader",
     "stock market creator",
     "options trading educator",
-    "futures trading creator",
     "price action trader",
     "algo trading creator",
     "trading psychology creator"
   ],
 
   "ai_tools": [
-    "AI tools creator",
-    "ChatGPT creator",
     "AI automation creator",
-    "AI business creator",
-    "no code AI builder",
-    "automation creator",
-    "AI productivity creator",
-    "AI software reviewer",
     "workflow automation creator",
-    "AI startup creator"
+    "AI business creator",
+    "AI productivity creator",
+    "no code AI builder",
+    "AI startup creator",
+    "AI software reviewer",
+    "ChatGPT creator"
   ],
 
   "coding": [
     "software engineer creator",
-    "programming educator",
-    "python creator",
-    "web developer creator",
     "AI engineer creator",
-    "coding tutorial creator",
     "full stack developer creator",
-    "tech educator",
+    "python creator",
+    "programming educator",
+    "web developer creator",
     "developer mentor",
-    "coding bootcamp creator"
+    "tech educator"
   ],
 
   "business": [
-    "online business creator",
     "startup creator",
     "solopreneur creator",
     "agency owner creator",
-    "freelancing creator",
-    "ecommerce creator",
-    "business coach",
+    "online business creator",
     "digital entrepreneur",
-    "small business creator",
-    "business growth creator"
+    "business growth creator",
+    "business coach",
+    "freelancing creator"
   ],
 
   "marketing": [
-    "social media creator",
     "digital marketing creator",
-    "content marketing creator",
-    "instagram growth creator",
-    "youtube growth creator",
-    "brand strategist creator",
-    "viral marketing creator",
     "email marketing creator",
     "performance marketing creator",
-    "content strategist"
+    "content strategist",
+    "youtube growth creator",
+    "brand strategist creator",
+    "content marketing creator"
   ],
 
   "creator_economy": [
-    "content creator coach",
     "personal branding creator",
-    "creator economy educator",
     "youtube strategist",
-    "short form creator",
-    "reels creator",
-    "ugc creator coach",
-    "influencer coach",
     "creator business mentor",
-    "audience growth creator"
+    "audience growth creator",
+    "content creator coach",
+    "creator economy educator"
   ],
 
   "fitness": [
-    "fitness coach",
-    "fat loss creator",
-    "gym creator",
     "online fitness coach",
-    "workout creator",
-    "muscle building creator",
     "nutrition creator",
     "body transformation creator",
-    "home workout creator",
-    "fitness motivation creator"
+    "fitness coach",
+    "muscle building creator"
   ],
 
   "productivity": [
     "productivity creator",
-    "self improvement creator",
-    "discipline creator",
-    "habit building creator",
-    "focus coach",
-    "time management creator",
     "deep work creator",
-    "mindset creator",
+    "discipline creator",
     "high performance creator",
-    "daily routine creator"
+    "habit building creator",
+    "focus coach"
   ],
 
   "faceless_ai": [
-    "faceless youtube creator",
     "AI video creator",
-    "automation channel creator",
-    "faceless content creator",
-    "AI shorts creator",
-    "AI storytelling creator",
     "youtube automation creator",
+    "AI storytelling creator",
     "AI narration creator",
-    "viral shorts creator",
-    "automated content creator"
+    "automation channel creator"
   ],
 
   "saas": [
     "SaaS founder creator",
     "micro saas creator",
-    "startup SaaS creator",
-    "software business creator",
     "indie hacker creator",
     "B2B SaaS creator",
     "software entrepreneur",
     "tech startup founder",
-    "SaaS growth creator",
-    "bootstrap founder creator"
+    "SaaS growth creator"
   ],
 
   "ecommerce": [
     "shopify creator",
-    "dropshipping creator",
     "amazon fba creator",
     "ecommerce coach",
-    "etsy seller creator",
-    "print on demand creator",
-    "online store creator",
     "shopify mentor",
     "ecommerce growth creator",
     "digital products creator"
@@ -158,13 +120,9 @@
   "real_estate": [
     "real estate creator",
     "property investing creator",
-    "airbnb creator",
     "real estate coach",
     "rental income creator",
-    "house flipping creator",
     "real estate investing educator",
-    "mortgage creator",
-    "property entrepreneur",
     "commercial real estate creator"
   ]
 }

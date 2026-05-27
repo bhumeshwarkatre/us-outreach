@@ -287,4 +287,4 @@ def start_scheduler():
         "[SCHEDULER] Jobs: 5:15 PM IST & 5:30 AM IST"
     )
 
-    return scheduler"# Refreshed $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" 
+    return scheduler 
