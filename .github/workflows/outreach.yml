@@ -1,9 +1,9 @@
-name:  Cloud Outreach Scheduler
+name: 🌐 Cloud Outreach Scheduler
 
 on:
   schedule:
-    - cron: '45 11 * * *'  # 5:15 PM IST
-    - cron: '0 0 * * *'    # 5:30 AM IST
+    - cron: '45 11 * * *'
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      # ✅ Add these variables here to ensure they are available
+      # ✅ Set DATABASE_PATH globally for ALL steps
       DATABASE_PATH: "leads.db"
       
     steps:
@@ -30,45 +30,60 @@ jobs:
       - name: 📦 Install Dependencies
         run: pip install -r requirements.txt
 
-      # ✅ THIS IS THE MISSING STEP THAT FIXES "NO SUCH TABLE"
-      - name: 🗄️ Create Table & Sync DB
+      # ✅ STEP 1: Create Table + Sync from Supabase (with verbose logging)
+      - name: 🗄️ Initialize & Sync Database
         run: |
           python -c "
-          import os, sqlite3
+          import os, sys, sqlite3
           from supabase import create_client
           
-          # Use the DATABASE_PATH from env
           db_path = os.getenv('DATABASE_PATH', 'leads.db')
-          print(f'📂 Using DB: {db_path}')
+          print(f'🔍 DEBUG: DATABASE_PATH={db_path}')
+          print(f'🔍 DEBUG: SUPABASE_URL={os.getenv(\"SUPABASE_URL\")[:20]}...')
           
-          conn = sqlite3.connect(db_path)
-          cursor = conn.cursor()
-          
-          # 1. Create the table if it doesn't exist
-          cursor.execute('''CREATE TABLE IF NOT EXISTS leads (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              creator_name TEXT, email TEXT UNIQUE, platform TEXT,
-              niche TEXT, followers TEXT, country TEXT, profile_url TEXT,
-              status TEXT, created_at TEXT, next_follow_up TEXT,
-              follow_up_count INTEGER DEFAULT 0, reply_status TEXT DEFAULT 'pending'
-          )''')
-          conn.commit()
-          print('✅ Table created/verified')
-          
-          # 2. Sync from Supabase
-          supabase = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY'))
-          leads = supabase.table('leads').select('*').execute().data
-          
-          cursor.execute('DELETE FROM leads')  # Clear local cache
-          for l in leads:
-              l.pop('id', None)
-              cursor.execute(
-                  'INSERT OR IGNORE INTO leads (creator_name,email,platform,niche,followers,country,profile_url,status,created_at,next_follow_up,follow_up_count,reply_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-                  (l.get('creator_name'), l.get('email'), l.get('platform'), l.get('niche'), l.get('followers'), l.get('country'), l.get('profile_url'), l.get('status'), l.get('created_at'), l.get('next_follow_up'), l.get('follow_up_count',0), l.get('reply_status','pending'))
+          try:
+              # 1. Connect to SQLite
+              conn = sqlite3.connect(db_path)
+              cursor = conn.cursor()
+              
+              # 2. Create table if missing
+              cursor.execute('''CREATE TABLE IF NOT EXISTS leads (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  creator_name TEXT, email TEXT UNIQUE, platform TEXT,
+                  niche TEXT, followers TEXT, country TEXT, profile_url TEXT,
+                  status TEXT, created_at TEXT, next_follow_up TEXT,
+                  follow_up_count INTEGER DEFAULT 0, reply_status TEXT DEFAULT 'pending'
+              )''')
+              conn.commit()
+              print('✅ Table created/verified')
+              
+              # 3. Connect to Supabase
+              supabase = create_client(
+                  os.getenv('SUPABASE_URL'), 
+                  os.getenv('SUPABASE_KEY')
               )
-          conn.commit()
-          print(f'✅ DB Synced: {len(leads)} leads')
-          conn.close()
+              
+              # 4. Fetch leads
+              leads = supabase.table('leads').select('*').execute().data
+              print(f'📥 Fetched {len(leads)} leads from Supabase')
+              
+              # 5. Clear local & insert
+              cursor.execute('DELETE FROM leads')
+              for l in leads:
+                  l.pop('id', None)
+                  cursor.execute(
+                      'INSERT OR IGNORE INTO leads (creator_name,email,platform,niche,followers,country,profile_url,status,created_at,next_follow_up,follow_up_count,reply_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                      (l.get('creator_name'), l.get('email'), l.get('platform'), l.get('niche'), l.get('followers'), l.get('country'), l.get('profile_url'), l.get('status'), l.get('created_at'), l.get('next_follow_up'), l.get('follow_up_count',0), l.get('reply_status','pending'))
+                  )
+              conn.commit()
+              print(f'✅ DB Synced: {len(leads)} leads written to {db_path}')
+              conn.close()
+              
+          except Exception as e:
+              print(f'💥 SYNC ERROR: {e}', file=sys.stderr)
+              import traceback
+              traceback.print_exc()
+              sys.exit(1)
           "
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -77,6 +92,7 @@ jobs:
       - name: 🔒 Clear Stale Locks
         run: rm -f scheduler.lock followup.lock
 
+      # ✅ STEP 2: Run Outreach (with same DATABASE_PATH)
       - name: 📤 Run Outreach Job
         env:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
@@ -84,8 +100,17 @@ jobs:
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           IMAP_SERVER: ${{ secrets.IMAP_SERVER }}
+          DATABASE_PATH: ${{ env.DATABASE_PATH }}  # ✅ Pass it explicitly
         run: |
           python -c "
-          from scheduler import send_scheduled_outreach
-          send_scheduled_outreach()
+          import os, sys
+          print(f'🔍 DEBUG: Scheduler using DATABASE_PATH={os.getenv(\"DATABASE_PATH\")}')
+          try:
+              from scheduler import send_scheduled_outreach
+              send_scheduled_outreach()
+          except Exception as e:
+              print(f'💥 SCHEDULER ERROR: {e}', file=sys.stderr)
+              import traceback
+              traceback.print_exc()
+              sys.exit(1)
           "
