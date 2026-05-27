@@ -29,6 +29,7 @@ IST = pytz.timezone("Asia/Kolkata")
 # =========================
 
 def send_scheduled_outreach():
+    print("🚨 CANARY v3.0: Supabase sync ACTIVE - Commit d3dd72d")
 
     try:
 
@@ -286,4 +287,4 @@ def start_scheduler():
         "[SCHEDULER] Jobs: 5:15 PM IST & 5:30 AM IST"
     )
 
-    return scheduler
+    return scheduler"# Refreshed $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" 
