@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '45 11 * * *'  # 5:15 PM IST
     - cron: '0 0 * * *'    # 5:30 AM IST
-  workflow_dispatch:
+  # workflow_dispatch:
 
 concurrency:
   group: outreach-scheduler
@@ -15,35 +15,34 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      # ✅ CRITICAL FIX: Use forward slash + exact path from config/settings.py
       DATABASE_PATH: "database/leads.db"
       
     steps:
-      - name: 📥 Checkout Repository
+      - name:  Checkout Repository
         uses: actions/checkout@v5
 
-      - name: 🐍 Set up Python
+      - name:  Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: 📦 Install Dependencies
+      - name:  Install Dependencies
         run: pip install -r requirements.txt
 
-      # ✅ STEP 1: Create Directory + Sync DB (using exact config path)
-      - name: 🗄️ Initialize & Sync Database
+      
+      - name:  Initialize & Sync Database
         run: |
-          # ✅ Ensure the database/ directory exists on Linux
+          #  Ensure the database/ directory exists on Linux
           mkdir -p database
           
           python -c "
           import os, sys, sqlite3
           from supabase import create_client
           
-          # ✅ Use the EXACT path from env (matches config/settings.py)
+          #  Use the EXACT path from env (matches config/settings.py)
           db_path = os.getenv('DATABASE_PATH', 'database/leads.db')
-          print(f'🔍 DEBUG: DATABASE_PATH={db_path}')
-          print(f'🔍 DEBUG: SUPABASE_URL={os.getenv(\"SUPABASE_URL\")[:20]}...')
+          print(f' DEBUG: DATABASE_PATH={db_path}')
+          print(f' DEBUG: SUPABASE_URL={os.getenv(\"SUPABASE_URL\")[:20]}...')
           
           try:
               # 1. Connect to SQLite
@@ -59,7 +58,7 @@ jobs:
                   follow_up_count INTEGER DEFAULT 0, reply_status TEXT DEFAULT 'pending'
               )''')
               conn.commit()
-              print('✅ Table created/verified')
+              print(' Table created/verified')
               
               # 3. Connect to Supabase
               supabase = create_client(
@@ -69,7 +68,7 @@ jobs:
               
               # 4. Fetch leads
               leads = supabase.table('leads').select('*').execute().data
-              print(f'📥 Fetched {len(leads)} leads from Supabase')
+              print(f' Fetched {len(leads)} leads from Supabase')
               
               # 5. Clear local & insert
               cursor.execute('DELETE FROM leads')
@@ -80,11 +79,11 @@ jobs:
                       (l.get('creator_name'), l.get('email'), l.get('platform'), l.get('niche'), l.get('followers'), l.get('country'), l.get('profile_url'), l.get('status'), l.get('created_at'), l.get('next_follow_up'), l.get('follow_up_count',0), l.get('reply_status','pending'))
                   )
               conn.commit()
-              print(f'✅ DB Synced: {len(leads)} leads written to {db_path}')
+              print(f' DB Synced: {len(leads)} leads written to {db_path}')
               conn.close()
               
           except Exception as e:
-              print(f'💥 SYNC ERROR: {e}', file=sys.stderr)
+              print(f' SYNC ERROR: {e}', file=sys.stderr)
               import traceback
               traceback.print_exc()
               sys.exit(1)
@@ -93,10 +92,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-      - name: 🔒 Clear Stale Locks
+      - name:  Clear Stale Locks
         run: rm -f scheduler.lock followup.lock
 
-      # ✅ STEP 2: Run Outreach (with same DATABASE_PATH)
+      #  STEP 2: Run Outreach (with same DATABASE_PATH)
       - name: 📤 Run Outreach Job
         env:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
@@ -104,16 +103,16 @@ jobs:
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           IMAP_SERVER: ${{ secrets.IMAP_SERVER }}
-          DATABASE_PATH: ${{ env.DATABASE_PATH }}  # ✅ Pass exact same path
+          DATABASE_PATH: ${{ env.DATABASE_PATH }} 
         run: |
           python -c "
           import os, sys
-          print(f'🔍 DEBUG: Scheduler using DATABASE_PATH={os.getenv(\"DATABASE_PATH\")}')
+          print(f' DEBUG: Scheduler using DATABASE_PATH={os.getenv(\"DATABASE_PATH\")}')
           try:
               from scheduler import send_scheduled_outreach
               send_scheduled_outreach()
           except Exception as e:
-              print(f'💥 SCHEDULER ERROR: {e}', file=sys.stderr)
+              print(f' SCHEDULER ERROR: {e}', file=sys.stderr)
               import traceback
               traceback.print_exc()
               sys.exit(1)
