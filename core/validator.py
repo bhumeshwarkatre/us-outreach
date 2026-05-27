@@ -1,5 +1,5 @@
 import re
-
+from typing import Optional
 
 class Validator:
 
@@ -31,34 +31,61 @@ class Validator:
         ".png", ".jpg", ".jpeg", ".webp",
         ".mp4", ".mov",
         ".html", ".htm",
-        ".pdf", ".txt",
-        ".read"
+        ".pdf", ".txt"
+        # ✅ REMOVED ".read" — we now CLEAN it instead of rejecting
     )
 
     # ✅ Block .read anywhere in the domain, not just at the end
     BLOCKED_DOMAIN_PATTERN = re.compile(r'\.read(\.|$)', re.IGNORECASE)
 
     @staticmethod
-    def valid_email(email):
+    def clean_email(email: Optional[str]) -> Optional[str]:
+        """
+        Clean email: remove .read suffixes, whitespace, normalize case.
+        Returns cleaned email or None if invalid after cleaning.
+        """
+        if not email or not isinstance(email, str):
+            return None
+
+        # 1. Strip whitespace & lowercase
+        email = email.strip().lower()
+
+        # 2. Remove tracking suffixes (Gmail read markers, etc.)
+        email = re.sub(r'\.read$', '', email)       # user@domain.com.read
+        email = re.sub(r'read$', '', email)         # user@domain.comread  
+        email = re.sub(r'\?read=true$', '', email)  # user@domain.com?read=true
+        email = re.sub(r'\?read=false$', '', email) # user@domain.com?read=false
+
+        # 3. Strip common punctuation artifacts
+        email = email.strip(" .,:;|<>[](){}")
+
+        # 4. Return cleaned email (validation happens separately)
+        return email if email else None
+
+    @staticmethod
+    def valid_email(email) -> bool:
+        """
+        Validates email (automatically cleans before checking).
+        100% backward compatible: still returns True/False.
+        """
         if not email:
             return False
 
-        email = email.lower().strip()
-
-        # ✅ REMOVED: email.replace(".read", "") — this was the bug
-
-        email = email.strip(" .,:;|<>[](){}")
-
-        # =====================
-        # REGEX CHECK
-        # =====================
-        if not Validator.EMAIL_PATTERN.match(email):
+        # ✅ CLEAN FIRST, then validate
+        cleaned = Validator.clean_email(email)
+        if not cleaned:
             return False
 
         # =====================
-        # BLOCKED DOMAIN PATTERN  ✅ NEW
+        # REGEX CHECK (on cleaned email)
         # =====================
-        domain = email.split("@")[-1]
+        if not Validator.EMAIL_PATTERN.match(cleaned):
+            return False
+
+        # =====================
+        # BLOCKED DOMAIN PATTERN
+        # =====================
+        domain = cleaned.split("@")[-1]
         if Validator.BLOCKED_DOMAIN_PATTERN.search(domain):
             return False
 
@@ -66,20 +93,20 @@ class Validator:
         # BLOCKED EMAILS
         # =====================
         for pattern in Validator.BLOCKED_EMAIL_PATTERNS:
-            if pattern in email:
+            if pattern in cleaned:
                 return False
 
         # =====================
-        # INVALID ENDINGS
+        # INVALID ENDINGS (on cleaned email)
         # =====================
         for ending in Validator.INVALID_ENDINGS:
-            if email.endswith(ending):
+            if cleaned.endswith(ending):
                 return False
 
         # =====================
         # DOUBLE DOTS
         # =====================
-        if ".." in email:
+        if ".." in cleaned:
             return False
 
         return True
